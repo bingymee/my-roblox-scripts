@@ -1,6 +1,6 @@
 -- ROBLOX LOCAL SCRIPT
--- UPDATED: Scrollable UI, Fixed Overlapping Tabs (TransitionID), 3 M1 Limit, Prediction
--- Features: Auto-Block, Auto-Punch, Dash, Cam Lock, Cache
+-- FINAL: Mobile Optimized (Minimize Button), Smart Nail Filter
+-- Features: Auto-Block (M1/Dash/Move/Nail), Auto-Punch, Dash, Cam Lock, Cache, Blatant
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -14,66 +14,71 @@ local Player = Players.LocalPlayer
 -- 1. CONFIG & DATABASE
 -- =================================================================================
 
+-- [Standard M1 Attacks]
 local m1Database = {
-	-- Gojo
 	["127314304761047"] = true, ["77891317857963"] = true, ["84446039611604"] = true, ["114159183912233"] = true,
-	-- Esper
 	["101101710876334"] = true, ["124127341057164"] = true, ["100901440555342"] = true, ["85853405255331"] = true,
-	-- Mob
 	["85692420698843"] = true, ["75662531587920"] = true, ["130769245088771"] = true, ["103631040324206"] = true,
-	-- Chara
 	["107867399798954"] = true, ["134486729011918"] = true, ["77034551070437"] = true, ["83150158223563"] = true,
-	-- Godly
 	["136031609325321"] = true, ["120212532321192"] = true, ["74960987180381"] = true, ["122575871777232"] = true,
-	-- Blade
 	["81483118494377"] = true, ["123762736246826"] = true, ["78443495730840"] = true, ["92893455375455"] = true,
-	-- Kratos M1s
 	["130573375727993"] = true, ["114333120271557"] = true, ["131141291261313"] = true, ["70618047941591"] = true,
 	["110804273799167"] = true, ["124509785398074"] = true, ["88637553004334"] = true, ["113533567296840"] = true,
+	["131893897709436"] = true, ["134129845570461"] = true, ["97929415765630"] = true, ["124430020094189"] = true,
+	["102875041440001"] = true, ["134933697595606"] = true, ["91251938763353"] = true, ["133137041054089"] = true,
+	["122459875105285"] = true, ["135793390993834"] = true, ["93221245142809"] = true, ["73110247017887"] = true,
+	["113978422458492"] = true, ["74467323861948"] = true, ["112264192271783"] = true, ["91014732452187"] = true,
+}
+
+local m1Exceptions = {
+	["124430020094189"] = -0.05,
 }
 
 local dashStarts = {
-	["78290593213759"] = true, -- Gojo
-	["81171550723416"] = true, -- Esper
-	["16900584124"] = true,    -- Mob
-	["107027465005454"] = true, -- Chara
-	["104708203440312"] = true, -- Kratos Axe
-	["83008536875803"] = true,  -- Kratos Fist
-	["102141442579104"] = true, -- Godly
-	["134054487113051"] = true, -- Blade
-	["113533567296840"] = true, -- Extra Check
+	["78290593213759"] = true, ["81171550723416"] = true, ["16900584124"] = true, ["107027465005454"] = true,
+	["104708203440312"] = true, ["83008536875803"] = true, ["102141442579104"] = true, ["134054487113051"] = true,
+	["113533567296840"] = true,
 }
 
 local dashEnds = {
-	["82190646305055"] = true, -- Gojo
-	["136991308458459"] = true, -- Esper
-	["16897565629"] = true,    -- Mob
-	["72484334716316"] = true,  -- Chara
-	["77242304295828"] = true,  -- Kratos Axe
-	["89684566192164"] = true,  -- Kratos Fist
-	["99230829853381"] = true,  -- Godly
-	["74672338436170"] = true,  -- Blade
+	["82190646305055"] = true, ["136991308458459"] = true, ["16897565629"] = true, ["72484334716316"] = true,
+	["77242304295828"] = true, ["89684566192164"] = true, ["99230829853381"] = true, ["74672338436170"] = true,
+}
+
+-- [Special Moves]
+local specialMovesDatabase = {
+	["18963762189"] = {D=0.25, H=0.1}, ["78096097412529"] = {D=0.3, H=0.2}, ["18879921457"] = {D=0.5, H=0.3},
+	["17328223121"] = {D=0.3, H=0.1}, ["17363525337"] = {D=0.5, H=0.2}, ["118843633382039"] = {D=0.4, H=0.2},
+	["86329508817928"] = {D=0.4, H=0.2}, ["95445150598735"] = {D=0.2, H=2}, ["108015670641340"] = {D=0.6, H=0.3},
+	["119892721851554"] = {D=0.4, H=1}, ["137836568814360"] = {D=0.5, H=2.5}, ["96591754150859"] = {D=0.5, H=2.5},
+	["128608804630313"] = {D=0.4, H=0.5}, ["85046933809524"] = {D=0, H=4}, ["18885421107"] = {D=0, H=0.3},
+	["99481834813123"] = {D=0.2, H=2.5}, ["82062508250907"] = {D=0, H=0.2}, ["106085904233993"] = {D=0.1, H=0.3},
+	["78027079909373"] = {D=0, H=5}, ["126428004652057"] = {D=0.1, H=3}, ["132072760933363"] = {D=0.1, H=0.3},
+	["137425788736528"] = {D=0.2, H=2.5}, ["91327391278757"] = {D=0.05, H=0.3},
+	["75992973286097"] = {D=0.3, H=1}, ["137904609365921"] = {D=0, H=0.7}, ["130395218019480"] = {D=0, H=1.2},
+}
+
+-- [Counter/I-Frame Animations]
+local counterAnims = {
+	["107905388923142"] = true, ["128786694565206"] = true, ["124404196830025"] = true,
 }
 
 local activeCharacters = {} 
+local activeNails = {}
 local processedTracks = {}
 
--- Combo State
 local localComboCount = 0
 local lastLocalPunchTime = 0
 local comboCooldownActive = false
 
--- Dash Animation
 local dashAnimRight = Instance.new("Animation"); dashAnimRight.AnimationId = "rbxassetid://16482641019"
 local dashAnimLeft = Instance.new("Animation"); dashAnimLeft.AnimationId = "rbxassetid://16482659401"
 
--- CONTENT HEIGHT CONFIG (For Scrollbar)
--- These numbers determine how far you can scroll on each tab
+-- UI SIZING
+local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+local SCALE = isMobile and 0.6 or 1
 local TAB_HEIGHTS = {
-	Block = 550,
-	Dash = 550,
-	Punch = 500,
-	Misc = 400
+	Block = 550 * SCALE, Dash = 550 * SCALE, Moves = 320 * SCALE, Punch = 550 * SCALE, Misc = 500 * SCALE
 }
 
 -- =================================================================================
@@ -105,7 +110,7 @@ ScreenGui.Parent = Player:WaitForChild("PlayerGui")
 -- Tooltip
 local TooltipFrame = Instance.new("Frame")
 TooltipFrame.Name = "Tooltip"
-TooltipFrame.Size = UDim2.new(0, 200, 0, 0)
+TooltipFrame.Size = UDim2.new(0, 200 * SCALE, 0, 0)
 TooltipFrame.AutomaticSize = Enum.AutomaticSize.Y
 TooltipFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 TooltipFrame.BorderSizePixel = 0
@@ -113,51 +118,65 @@ TooltipFrame.Visible = false
 TooltipFrame.ZIndex = 200 
 TooltipFrame.Parent = ScreenGui
 
-local TTStroke = Instance.new("UIStroke", TooltipFrame)
-TTStroke.Color = Color3.fromRGB(60, 60, 70)
-TTStroke.Thickness = 1
-local TTCorner = Instance.new("UICorner", TooltipFrame)
-TTCorner.CornerRadius = UDim.new(0, 6)
+local TTStroke = Instance.new("UIStroke", TooltipFrame); TTStroke.Color = Color3.fromRGB(60, 60, 70); TTStroke.Thickness = 1
+local TTCorner = Instance.new("UICorner", TooltipFrame); TTCorner.CornerRadius = UDim.new(0, 6)
 local TTLabel = Instance.new("TextLabel", TooltipFrame)
-TTLabel.Size = UDim2.new(1, -10, 0, 0)
-TTLabel.Position = UDim2.new(0, 5, 0, 5)
-TTLabel.AutomaticSize = Enum.AutomaticSize.Y
-TTLabel.BackgroundTransparency = 1
-TTLabel.TextColor3 = Color3.new(0.9, 0.9, 0.9)
-TTLabel.Font = Enum.Font.Gotham
-TTLabel.TextSize = 11
-TTLabel.TextWrapped = true
-TTLabel.TextXAlignment = Enum.TextXAlignment.Left
-TTLabel.ZIndex = 201
-TTLabel.Parent = TooltipFrame
-local TTPadding = Instance.new("UIPadding", TooltipFrame)
-TTPadding.PaddingBottom = UDim.new(0, 5)
+TTLabel.Size = UDim2.new(1, -10, 0, 0); TTLabel.Position = UDim2.new(0, 5, 0, 5); TTLabel.AutomaticSize = Enum.AutomaticSize.Y
+TTLabel.BackgroundTransparency = 1; TTLabel.TextColor3 = Color3.new(0.9, 0.9, 0.9); TTLabel.Font = Enum.Font.Gotham
+TTLabel.TextSize = 11 * SCALE; TTLabel.TextWrapped = true; TTLabel.TextXAlignment = Enum.TextXAlignment.Left; TTLabel.ZIndex = 201; TTLabel.Parent = TooltipFrame
+local TTPadding = Instance.new("UIPadding", TooltipFrame); TTPadding.PaddingBottom = UDim.new(0, 5)
 
--- Main Window (Fixed Height, Scrollable Content)
+-- Minimize Button (Mobile Friendly)
+local MinBtn = Instance.new("TextButton")
+MinBtn.Name = "Minimize"
+MinBtn.Size = UDim2.new(0, 40 * SCALE, 0, 40 * SCALE)
+MinBtn.Position = UDim2.new(0.02, 0, 0.05, 0) -- Top left safe zone
+MinBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+MinBtn.Text = "UI"
+MinBtn.TextColor3 = Color3.new(1,1,1)
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextSize = 12 * SCALE
+MinBtn.Parent = ScreenGui
+local MinCorner = Instance.new("UICorner", MinBtn); MinCorner.CornerRadius = UDim.new(0, 8)
+
+-- Main Window
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 450) -- Fixed height window
-MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 280 * SCALE, 0, 450 * SCALE)
+-- Center on mobile to ensure visibility, offset on PC
+MainFrame.Position = isMobile and UDim2.new(0.5, 0, 0.5, 0) or UDim2.new(0.1, 0, 0.2, 0)
+MainFrame.AnchorPoint = isMobile and Vector2.new(0.5, 0.5) or Vector2.new(0, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
-local MainCorner = Instance.new("UICorner", MainFrame)
-MainCorner.CornerRadius = UDim.new(0, 10)
-local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(50, 50, 60)
-MainStroke.Thickness = 2
+MinBtn.MouseButton1Click:Connect(function()
+	MainFrame.Visible = not MainFrame.Visible
+end)
 
--- Drag Logic
+local MainCorner = Instance.new("UICorner", MainFrame); MainCorner.CornerRadius = UDim.new(0, 10 * SCALE)
+local MainStroke = Instance.new("UIStroke", MainFrame); MainStroke.Color = Color3.fromRGB(50, 50, 60); MainStroke.Thickness = 2
+
+-- Drag Logic (Touch + Mouse)
 local dragging, dragInput, dragStart, startPos
 MainFrame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true; dragStart = input.Position; startPos = MainFrame.Position
-		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = MainFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
 	end
 end)
-MainFrame.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end end)
+
+MainFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
 UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then
 		local delta = input.Position - dragStart
@@ -169,77 +188,47 @@ local function tween(obj, info, props) TweenService:Create(obj, TweenInfo.new(un
 
 local function registerTooltip(button, text)
 	button.MouseEnter:Connect(function()
-		TTLabel.Text = text
-		TooltipFrame.Visible = true
-		TooltipFrame.BackgroundTransparency = 1
-		TTLabel.TextTransparency = 1
-		tween(TooltipFrame, {0.2}, {BackgroundTransparency = 0.1})
-		tween(TTLabel, {0.2}, {TextTransparency = 0})
+		TTLabel.Text = text; TooltipFrame.Visible = true; TooltipFrame.BackgroundTransparency = 1; TTLabel.TextTransparency = 1
+		tween(TooltipFrame, {0.2}, {BackgroundTransparency = 0.1}); tween(TTLabel, {0.2}, {TextTransparency = 0})
 	end)
 	button.MouseMoved:Connect(function()
-		local m = UserInputService:GetMouseLocation()
-		TooltipFrame.Position = UDim2.fromOffset(m.X + 15, m.Y + 15)
+		local m = UserInputService:GetMouseLocation(); TooltipFrame.Position = UDim2.fromOffset(m.X + 15, m.Y + 15)
 	end)
 	button.MouseLeave:Connect(function() TooltipFrame.Visible = false end)
 end
 
 local function createInput(parent, text, default, yPos)
 	local Container = Instance.new("Frame", parent)
-	Container.Size = UDim2.new(0.9, 0, 0, 30)
-	Container.Position = UDim2.new(0.5, 0, 0, yPos)
-	Container.AnchorPoint = Vector2.new(0.5, 0.5)
-	Container.BackgroundTransparency = 1
-	Container.ZIndex = 2
-	Container:SetAttribute("OrgSize", Container.Size)
+	Container.Size = UDim2.new(0.9, 0, 0, 30 * SCALE); Container.Position = UDim2.new(0.5, 0, 0, yPos * SCALE); Container.AnchorPoint = Vector2.new(0.5, 0.5)
+	Container.BackgroundTransparency = 1; Container.ZIndex = 2; Container:SetAttribute("OrgSize", Container.Size)
 
 	local Label = Instance.new("TextLabel", Container)
-	Label.Text = text
-	Label.Size = UDim2.new(0.5, 0, 1, 0)
-	Label.BackgroundTransparency = 1
-	Label.TextColor3 = Color3.fromRGB(200, 200, 200)
-	Label.TextXAlignment = Enum.TextXAlignment.Left
-	Label.Font = Enum.Font.GothamMedium
-	Label.TextSize = 12
-	Label.ZIndex = 2
+	Label.Text = text; Label.Size = UDim2.new(0.5, 0, 1, 0); Label.BackgroundTransparency = 1
+	Label.TextColor3 = Color3.fromRGB(200, 200, 200); Label.TextXAlignment = Enum.TextXAlignment.Left; Label.Font = Enum.Font.GothamMedium
+	Label.TextSize = 12 * SCALE; Label.ZIndex = 2
 
 	local Box = Instance.new("TextBox", Container)
-	Box.Text = default
-	Box.Size = UDim2.new(0.45, 0, 1, 0)
-	Box.Position = UDim2.new(0.55, 0, 0, 0)
-	Box.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-	Box.TextColor3 = Color3.fromRGB(100, 255, 120)
-	Box.Font = Enum.Font.Code
-	Box.TextSize = 12
-	Box.ZIndex = 2
+	Box.Text = default; Box.Size = UDim2.new(0.45, 0, 1, 0); Box.Position = UDim2.new(0.55, 0, 0, 0)
+	Box.BackgroundColor3 = Color3.fromRGB(40, 40, 45); Box.TextColor3 = Color3.fromRGB(100, 255, 120); Box.Font = Enum.Font.Code
+	Box.TextSize = 12 * SCALE; Box.ZIndex = 2; local Corner = Instance.new("UICorner", Box); Corner.CornerRadius = UDim.new(0, 6)
 	
-	local Corner = Instance.new("UICorner", Box); Corner.CornerRadius = UDim.new(0, 6)
+	Box.Focused:Connect(function() tween(Box, {0.2}, {BackgroundColor3 = Color3.fromRGB(50, 50, 60)}) end)
+	Box.FocusLost:Connect(function() tween(Box, {0.2}, {BackgroundColor3 = Color3.fromRGB(40, 40, 45)}) end)
 	return Box, Container
 end
 
 local function createToggle(parent, text, yPos)
 	local Btn = Instance.new("TextButton", parent)
-	Btn.Text = text
-	Btn.Size = UDim2.new(0.9, 0, 0, 35)
-	Btn.Position = UDim2.new(0.5, 0, 0, yPos)
-	Btn.AnchorPoint = Vector2.new(0.5, 0.5)
-	Btn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
-	Btn.TextColor3 = Color3.new(1, 1, 1)
-	Btn.Font = Enum.Font.GothamBold
-	Btn.TextSize = 14
-	Btn.ZIndex = 2
-	Btn:SetAttribute("OrgSize", Btn.Size)
-	Btn:SetAttribute("BaseColor", Btn.BackgroundColor3) 
+	Btn.Text = text; Btn.Size = UDim2.new(0.9, 0, 0, 35 * SCALE); Btn.Position = UDim2.new(0.5, 0, 0, yPos * SCALE); Btn.AnchorPoint = Vector2.new(0.5, 0.5)
+	Btn.BackgroundColor3 = Color3.fromRGB(180, 60, 60); Btn.TextColor3 = Color3.new(1, 1, 1); Btn.Font = Enum.Font.GothamBold
+	Btn.TextSize = 14 * SCALE; Btn.ZIndex = 2; Btn:SetAttribute("OrgSize", Btn.Size); Btn:SetAttribute("BaseColor", Btn.BackgroundColor3) 
 	local Corner = Instance.new("UICorner", Btn); Corner.CornerRadius = UDim.new(0, 6)
 	
-	-- Hover Effect
 	Btn.MouseEnter:Connect(function()
 		local curr = Btn.BackgroundColor3
 		tween(Btn, {0.2, Enum.EasingStyle.Quad}, {BackgroundColor3 = Color3.new(math.min(curr.R+0.1,1), math.min(curr.G+0.1,1), math.min(curr.B+0.1,1))})
 	end)
-	Btn.MouseLeave:Connect(function()
-		tween(Btn, {0.2, Enum.EasingStyle.Quad}, {BackgroundColor3 = Btn:GetAttribute("BaseColor")})
-	end)
-	
+	Btn.MouseLeave:Connect(function() tween(Btn, {0.2, Enum.EasingStyle.Quad}, {BackgroundColor3 = Btn:GetAttribute("BaseColor")}) end)
 	return Btn
 end
 
@@ -248,65 +237,43 @@ end
 -- =================================================================================
 
 local TabFrame = Instance.new("Frame", MainFrame)
-TabFrame.Size = UDim2.new(1, -10, 0, 40)
-TabFrame.Position = UDim2.new(0.5, 0, 0, 5)
-TabFrame.AnchorPoint = Vector2.new(0.5, 0)
-TabFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-TabFrame.ZIndex = 10
+TabFrame.Size = UDim2.new(1, -10, 0, 40 * SCALE); TabFrame.Position = UDim2.new(0.5, 0, 0, 5); TabFrame.AnchorPoint = Vector2.new(0.5, 0)
+TabFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40); TabFrame.ZIndex = 10
 local TabCorner = Instance.new("UICorner", TabFrame); TabCorner.CornerRadius = UDim.new(0, 8)
 
+-- TABS: 1/5 Width Each
 local function createTabBtn(text, xOrder)
 	local btn = Instance.new("TextButton", TabFrame)
-	btn.Size = UDim2.new(0.25, 0, 1, 0)
-	btn.Position = UDim2.new(0.25 * (xOrder-1), 0, 0, 0)
-	btn.Text = text
-	btn.BackgroundTransparency = 1
-	btn.TextColor3 = Color3.fromRGB(150,150,150)
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 11
-	btn.ZIndex = 11
-	return btn
+	btn.Size = UDim2.new(0.2, 0, 1, 0); btn.Position = UDim2.new(0.2 * (xOrder-1), 0, 0, 0)
+	btn.Text = text; btn.BackgroundTransparency = 1; btn.TextColor3 = Color3.fromRGB(150,150,150); btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 10 * SCALE; btn.ZIndex = 11; return btn
 end
 
 local BlockTabBtn = createTabBtn("BLOCK", 1); BlockTabBtn.TextColor3 = Color3.new(1,1,1)
 local DashTabBtn = createTabBtn("DASH", 2)
-local PunchTabBtn = createTabBtn("PUNCH", 3)
-local MiscTabBtn = createTabBtn("MISC", 4)
+local MovesTabBtn = createTabBtn("MOVES", 3)
+local PunchTabBtn = createTabBtn("PUNCH", 4)
+local MiscTabBtn = createTabBtn("MISC", 5)
 
 local TabIndicator = Instance.new("Frame", TabFrame)
-TabIndicator.Size = UDim2.new(0.25, -4, 0, 3)
-TabIndicator.Position = UDim2.new(0, 2, 1, -3)
-TabIndicator.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
-TabIndicator.BorderSizePixel = 0
-TabIndicator.ZIndex = 12
+TabIndicator.Size = UDim2.new(0.2, -4, 0, 3); TabIndicator.Position = UDim2.new(0, 2, 1, -3)
+TabIndicator.BackgroundColor3 = Color3.fromRGB(80, 200, 120); TabIndicator.BorderSizePixel = 0; TabIndicator.ZIndex = 12
 local IndCorner = Instance.new("UICorner", TabIndicator); IndCorner.CornerRadius = UDim.new(1, 0)
 
--- SCROLLING CONTAINER
 local ScrollContainer = Instance.new("ScrollingFrame", MainFrame)
-ScrollContainer.Size = UDim2.new(1, 0, 1, -50)
-ScrollContainer.Position = UDim2.new(0, 0, 0, 50)
-ScrollContainer.BackgroundTransparency = 1
-ScrollContainer.BorderSizePixel = 0
-ScrollContainer.ScrollBarThickness = 4
-ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(80, 200, 120)
-ScrollContainer.ClipsDescendants = true -- Ensures elements hide when scrolled/switched
-ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 550) -- Dynamic
+ScrollContainer.Size = UDim2.new(1, 0, 1, -50 * SCALE); ScrollContainer.Position = UDim2.new(0, 0, 0, 50 * SCALE); ScrollContainer.BackgroundTransparency = 1
+ScrollContainer.BorderSizePixel = 0; ScrollContainer.ScrollBarThickness = 4; ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(80, 200, 120)
+ScrollContainer.ClipsDescendants = true; ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 550 * SCALE)
 
--- Pages
 local BlockPage = Instance.new("Frame", ScrollContainer); BlockPage.Size = UDim2.new(1, 0, 1, 0); BlockPage.BackgroundTransparency = 1; BlockPage.Visible = true; BlockPage.Name = "BlockPage"
 local DashPage = Instance.new("Frame", ScrollContainer); DashPage.Size = UDim2.new(1, 0, 1, 0); DashPage.BackgroundTransparency = 1; DashPage.Visible = false; DashPage.Name = "DashPage"
+local MovesPage = Instance.new("Frame", ScrollContainer); MovesPage.Size = UDim2.new(1, 0, 1, 0); MovesPage.BackgroundTransparency = 1; MovesPage.Visible = false; MovesPage.Name = "MovesPage"
 local PunchPage = Instance.new("Frame", ScrollContainer); PunchPage.Size = UDim2.new(1, 0, 1, 0); PunchPage.BackgroundTransparency = 1; PunchPage.Visible = false; PunchPage.Name = "PunchPage"
 local MiscPage = Instance.new("Frame", ScrollContainer); MiscPage.Size = UDim2.new(1, 0, 1, 0); MiscPage.BackgroundTransparency = 1; MiscPage.Visible = false; MiscPage.Name = "MiscPage"
 
 local StatusLabel = Instance.new("TextLabel", MainFrame)
-StatusLabel.Text = "IDLE"
-StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0, 0, 1, -15)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
-StatusLabel.Font = Enum.Font.Code
-StatusLabel.TextSize = 10
-StatusLabel.ZIndex = 20
+StatusLabel.Text = "IDLE"; StatusLabel.Size = UDim2.new(1, 0, 0, 20); StatusLabel.Position = UDim2.new(0, 0, 1, -15)
+StatusLabel.BackgroundTransparency = 1; StatusLabel.TextColor3 = Color3.fromRGB(100, 100, 100); StatusLabel.Font = Enum.Font.Code; StatusLabel.TextSize = 10 * SCALE; StatusLabel.ZIndex = 20
 
 -- == BLOCK PAGE CONTENTS ==
 local B_Delay, c1 = createInput(BlockPage, "Delay (s):", "0.16", 30)
@@ -324,15 +291,15 @@ B_Toggle.BackgroundColor3 = Color3.fromRGB(50, 150, 80); B_Toggle:SetAttribute("
 registerTooltip(B_Toggle, "Auto-Blocks M1 Attacks.")
 
 local B_LookToggle = createToggle(BlockPage, "Look At: OFF", 440)
-B_LookToggle.Size = UDim2.new(0.9, 0, 0, 25)
+B_LookToggle.Size = UDim2.new(0.9, 0, 0, 25 * SCALE)
 registerTooltip(B_LookToggle, "Faces the enemy BEFORE blocking.")
 
 local B_MoveToggle = createToggle(BlockPage, "Auto Pos: OFF", 470)
-B_MoveToggle.Size = UDim2.new(0.9, 0, 0, 25)
+B_MoveToggle.Size = UDim2.new(0.9, 0, 0, 25 * SCALE)
 registerTooltip(B_MoveToggle, "Instantly glides 3 studs in front of the attacker.")
 
 local B_CautionToggle = createToggle(BlockPage, "Cautious: OFF", 500)
-B_CautionToggle.Size = UDim2.new(0.9, 0, 0, 25)
+B_CautionToggle.Size = UDim2.new(0.9, 0, 0, 25 * SCALE)
 registerTooltip(B_CautionToggle, "Randomly blocks/stares to look human.")
 
 -- == DASH PAGE CONTENTS ==
@@ -350,16 +317,30 @@ D_Toggle.BackgroundColor3 = Color3.fromRGB(50, 150, 80); D_Toggle:SetAttribute("
 registerTooltip(D_Toggle, "Auto-Blocks Dash Attacks.")
 
 local D_SmartToggle = createToggle(DashPage, "Smart Hold: OFF", 400)
-D_SmartToggle.Size = UDim2.new(0.9, 0, 0, 25)
+D_SmartToggle.Size = UDim2.new(0.9, 0, 0, 25 * SCALE)
 registerTooltip(D_SmartToggle, "Waits for 'End/Punch' anim to START, then waits Post-Anim to unblock.")
 
 local D_LookToggle = createToggle(DashPage, "Look At: OFF", 430)
-D_LookToggle.Size = UDim2.new(0.9, 0, 0, 25)
+D_LookToggle.Size = UDim2.new(0.9, 0, 0, 25 * SCALE)
 registerTooltip(D_LookToggle, "Faces the enemy BEFORE blocking dash.")
 
 local D_MoveToggle = createToggle(DashPage, "Auto Pos: OFF", 460)
-D_MoveToggle.Size = UDim2.new(0.9, 0, 0, 25)
+D_MoveToggle.Size = UDim2.new(0.9, 0, 0, 25 * SCALE)
 registerTooltip(D_MoveToggle, "Instantly glides 3 studs in front of dash attacker.")
+
+-- == MOVES PAGE CONTENTS ==
+local SP_Dist = createInput(MovesPage, "Distance:", "15", 30)
+local SP_ExDelay = createInput(MovesPage, "Extra Delay:", "0", 70)
+local SP_ExHold = createInput(MovesPage, "Extra Hold:", "0", 110)
+local N_Dist = createInput(MovesPage, "Nail Dist:", "40", 150)
+
+local SP_Toggle = createToggle(MovesPage, "Move Block: ON", 200)
+SP_Toggle.BackgroundColor3 = Color3.fromRGB(50, 150, 80); SP_Toggle:SetAttribute("BaseColor", Color3.fromRGB(50, 150, 80))
+registerTooltip(SP_Toggle, "Blocks specific Special Moves using fixed, optimal timings.")
+
+local N_Toggle = createToggle(MovesPage, "Nail Block: OFF", 240)
+N_Toggle.Size = UDim2.new(0.9, 0, 0, 30 * SCALE)
+registerTooltip(N_Toggle, "Holds block if a 'Nail' object appears within range (Needle user counter).")
 
 -- == PUNCH PAGE CONTENTS ==
 local P_Delay, p1 = createInput(PunchPage, "Delay (s):", "0.05", 30)
@@ -374,15 +355,15 @@ local P_Toggle = createToggle(PunchPage, "Punch: OFF", 320)
 registerTooltip(P_Toggle, "Block ON: Counter-Attack mode.\nBlock OFF: Aggro mode.")
 
 local P_LookToggle = createToggle(PunchPage, "Look At: OFF", 360)
-P_LookToggle.Size = UDim2.new(0.9, 0, 0, 25)
+P_LookToggle.Size = UDim2.new(0.9, 0, 0, 25 * SCALE)
 registerTooltip(P_LookToggle, "Locks rotation onto the target while punching.")
 
 local P_GlideToggle = createToggle(PunchPage, "Glide: OFF", 390)
-P_GlideToggle.Size = UDim2.new(0.9, 0, 0, 25)
+P_GlideToggle.Size = UDim2.new(0.9, 0, 0, 25 * SCALE)
 registerTooltip(P_GlideToggle, "Smoothly moves closer to the target while punching.")
 
 local P_ComboToggle = createToggle(PunchPage, "Max 3 Hits: OFF", 420)
-P_ComboToggle.Size = UDim2.new(0.9, 0, 0, 25)
+P_ComboToggle.Size = UDim2.new(0.9, 0, 0, 25 * SCALE)
 registerTooltip(P_ComboToggle, "Stops punching after 3 consecutive M1s detected on yourself.")
 
 -- == MISC PAGE CONTENTS ==
@@ -392,19 +373,23 @@ local M_DashCD, m3 = createInput(MiscPage, "Dash CD (s):", "2", 110)
 local M_CamSmooth, m4 = createInput(MiscPage, "Cam Smooth:", "0.1", 150)
 
 local M_SideDashToggle = createToggle(MiscPage, "Side Dash: OFF", 200)
-M_SideDashToggle.Size = UDim2.new(0.9, 0, 0, 30)
+M_SideDashToggle.Size = UDim2.new(0.9, 0, 0, 30 * SCALE)
 registerTooltip(M_SideDashToggle, "Aggro Mode: Dashes L/R around enemy.")
 
 local M_CamLockToggle = createToggle(MiscPage, "Cam Lock: OFF", 240)
-M_CamLockToggle.Size = UDim2.new(0.9, 0, 0, 30)
-registerTooltip(M_CamLockToggle, "Guides camera to target.")
+M_CamLockToggle.Size = UDim2.new(0.9, 0, 0, 30 * SCALE)
+registerTooltip(M_CamLockToggle, "Guides camera to target (Horizontal Only).")
+
+local M_BlatantToggle = createToggle(MiscPage, "Blatant: OFF", 280)
+M_BlatantToggle.Size = UDim2.new(0.9, 0, 0, 30 * SCALE)
+registerTooltip(M_BlatantToggle, "Removes smoothing. Instantly teleports for Glide/Pos/Look.")
 
 -- =================================================================================
--- 5. TRANSITION & HIDING LOGIC (Fixed)
+-- 5. TRANSITION & HIDING LOGIC
 -- =================================================================================
 
 local currentTab = "Block" 
-local transitionID = 0 -- Prevents async overlap glitches
+local transitionID = 0
 
 local function getElements(page)
 	local elements = {}
@@ -417,24 +402,15 @@ end
 local function animateOut(page)
 	local elements = getElements(page)
 	for _, el in pairs(elements) do
-		-- Store original pos
 		if not el:GetAttribute("OrgPos") then
-			el:SetAttribute("OrgPos", el.Position)
-			el:SetAttribute("OrgSize", el.Size)
+			el:SetAttribute("OrgPos", el.Position); el:SetAttribute("OrgSize", el.Size)
 		end
-		
-		-- "Explode" effect
 		local rotDir = math.random(0, 1) == 1 and 1 or -1
 		local tweenGoals = { Rotation = 180 * rotDir, Size = UDim2.new(0,0,0,0), BackgroundTransparency = 1 }
-		
 		if el:IsA("TextLabel") or el:IsA("TextButton") or el:IsA("TextBox") then tweenGoals.TextTransparency = 1 end
 		tween(el, {0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In}, tweenGoals)
-		
-		-- Fade children
 		for _, sub in pairs(el:GetDescendants()) do
-			if sub:IsA("TextLabel") or sub:IsA("TextBox") or sub:IsA("TextButton") then
-				tween(sub, {0.3}, {TextTransparency = 1, BackgroundTransparency = 1})
-			end
+			if sub:IsA("TextLabel") or sub:IsA("TextBox") or sub:IsA("TextButton") then tween(sub, {0.3}, {TextTransparency = 1, BackgroundTransparency = 1}) end
 		end
 	end
 end
@@ -446,23 +422,13 @@ local function animateIn(page)
 		local orgPos = el:GetAttribute("OrgPos") or el.Position
 		local orgSize = el:GetAttribute("OrgSize") or el.Size
 		el:SetAttribute("OrgPos", orgPos)
-		
-		-- Set Start State
-		el.Rotation = math.random(-90, 90)
-		el.Size = UDim2.new(0, 0, 0, 0) 
-		el.BackgroundTransparency = 1
-		
-		-- Prepare Tweens
+		el.Rotation = math.random(-90, 90); el.Size = UDim2.new(0, 0, 0, 0); el.BackgroundTransparency = 1
 		local endTransparency = (el:IsA("TextButton") or el:IsA("TextBox")) and 0 or 1
 		local tweenGoals = { Rotation = 0, Size = orgSize, BackgroundTransparency = endTransparency }
-		
 		if el:IsA("TextButton") or el:IsA("TextLabel") or el:IsA("TextBox") then tweenGoals.TextTransparency = 0 end
 		tween(el, {0.5, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out}, tweenGoals)
-		
-		-- Fade In children
 		for _, sub in pairs(el:GetDescendants()) do
-			if sub:IsA("TextLabel") or sub:IsA("TextBox") or sub:IsA("TextButton") then
-				tween(sub, {0.3}, {TextTransparency = 0})
+			if sub:IsA("TextLabel") or sub:IsA("TextBox") or sub:IsA("TextButton") then tween(sub, {0.3}, {TextTransparency = 0})
 				if sub:IsA("TextBox") then tween(sub, {0.3}, {BackgroundTransparency = 0}) end
 			end
 		end
@@ -475,44 +441,39 @@ local function switchTab(tabName, btn, indicatorPos, contentHeight)
 	transitionID = transitionID + 1
 	local currentID = transitionID
 	
-	-- Colors
 	tween(BlockTabBtn, {0.3}, {TextColor3 = Color3.fromRGB(150,150,150)})
 	tween(DashTabBtn, {0.3}, {TextColor3 = Color3.fromRGB(150,150,150)})
+	tween(MovesTabBtn, {0.3}, {TextColor3 = Color3.fromRGB(150,150,150)})
 	tween(PunchTabBtn, {0.3}, {TextColor3 = Color3.fromRGB(150,150,150)})
 	tween(MiscTabBtn, {0.3}, {TextColor3 = Color3.fromRGB(150,150,150)})
 	tween(btn, {0.3}, {TextColor3 = Color3.new(1,1,1)})
 	tween(TabIndicator, {0.3, Enum.EasingStyle.Back}, {Position = indicatorPos})
-	
-	-- Update Scrolling Canvas
 	ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, contentHeight)
 	
-	-- Clean Up Old
-	animateOut(BlockPage)
-	animateOut(DashPage)
-	animateOut(PunchPage)
-	animateOut(MiscPage)
+	animateOut(BlockPage); animateOut(DashPage); animateOut(MovesPage); animateOut(PunchPage); animateOut(MiscPage)
 	
-	-- Bring In New
 	if tabName == "Block" then animateIn(BlockPage)
 	elseif tabName == "Dash" then animateIn(DashPage)
+	elseif tabName == "Moves" then animateIn(MovesPage)
 	elseif tabName == "Punch" then animateIn(PunchPage)
 	elseif tabName == "Misc" then animateIn(MiscPage)
 	end
 	
-	-- Force Hide logic to prevent overlaps
 	task.delay(0.4, function()
-		if transitionID ~= currentID then return end -- If user switched again, don't touch
+		if transitionID ~= currentID then return end
 		BlockPage.Visible = (tabName == "Block")
 		DashPage.Visible = (tabName == "Dash")
+		MovesPage.Visible = (tabName == "Moves")
 		PunchPage.Visible = (tabName == "Punch")
 		MiscPage.Visible = (tabName == "Misc")
 	end)
 end
 
 BlockTabBtn.MouseButton1Click:Connect(function() switchTab("Block", BlockTabBtn, UDim2.new(0, 2, 1, -3), TAB_HEIGHTS.Block) end)
-DashTabBtn.MouseButton1Click:Connect(function() switchTab("Dash", DashTabBtn, UDim2.new(0.25, 2, 1, -3), TAB_HEIGHTS.Dash) end)
-PunchTabBtn.MouseButton1Click:Connect(function() switchTab("Punch", PunchTabBtn, UDim2.new(0.5, 2, 1, -3), TAB_HEIGHTS.Punch) end)
-MiscTabBtn.MouseButton1Click:Connect(function() switchTab("Misc", MiscTabBtn, UDim2.new(0.75, 2, 1, -3), TAB_HEIGHTS.Misc) end)
+DashTabBtn.MouseButton1Click:Connect(function() switchTab("Dash", DashTabBtn, UDim2.new(0.2, 2, 1, -3), TAB_HEIGHTS.Dash) end)
+MovesTabBtn.MouseButton1Click:Connect(function() switchTab("Moves", MovesTabBtn, UDim2.new(0.4, 2, 1, -3), TAB_HEIGHTS.Moves) end)
+PunchTabBtn.MouseButton1Click:Connect(function() switchTab("Punch", PunchTabBtn, UDim2.new(0.6, 2, 1, -3), TAB_HEIGHTS.Punch) end)
+MiscTabBtn.MouseButton1Click:Connect(function() switchTab("Misc", MiscTabBtn, UDim2.new(0.8, 2, 1, -3), TAB_HEIGHTS.Misc) end)
 
 -- =================================================================================
 -- 6. TOGGLE LOGIC
@@ -521,8 +482,9 @@ MiscTabBtn.MouseButton1Click:Connect(function() switchTab("Misc", MiscTabBtn, UD
 local settings = {
 	Block = {Enabled = true, Look = false, Move = false, Caution = false},
 	Dash = {Enabled = true, Look = false, Move = false, Smart = false},
+	Moves = {Enabled = true, NailBlock = false}, 
 	Punch = {Enabled = false, Look = false, Glide = false, Max3 = false},
-	Misc = {SideDash = false, CamLock = false}
+	Misc = {SideDash = false, CamLock = false, Blatant = false}
 }
 
 local function updateToggleVisuals(btn, enabled, textOn, textOff)
@@ -532,24 +494,32 @@ local function updateToggleVisuals(btn, enabled, textOn, textOff)
 	tween(btn, {0.2}, {BackgroundColor3 = newColor})
 end
 
--- Toggle Connections
+-- Block
 B_Toggle.MouseButton1Click:Connect(function() settings.Block.Enabled = not settings.Block.Enabled; updateToggleVisuals(B_Toggle, settings.Block.Enabled, "Block: ON", "Block: OFF") end)
 B_LookToggle.MouseButton1Click:Connect(function() settings.Block.Look = not settings.Block.Look; updateToggleVisuals(B_LookToggle, settings.Block.Look, "Look At: ON", "Look At: OFF") end)
 B_MoveToggle.MouseButton1Click:Connect(function() settings.Block.Move = not settings.Block.Move; updateToggleVisuals(B_MoveToggle, settings.Block.Move, "Auto Pos: ON", "Auto Pos: OFF") end)
 B_CautionToggle.MouseButton1Click:Connect(function() settings.Block.Caution = not settings.Block.Caution; updateToggleVisuals(B_CautionToggle, settings.Block.Caution, "Cautious: ON", "Cautious: OFF") end)
 
+-- Dash
 D_Toggle.MouseButton1Click:Connect(function() settings.Dash.Enabled = not settings.Dash.Enabled; updateToggleVisuals(D_Toggle, settings.Dash.Enabled, "Dash Block: ON", "Dash Block: OFF") end)
 D_LookToggle.MouseButton1Click:Connect(function() settings.Dash.Look = not settings.Dash.Look; updateToggleVisuals(D_LookToggle, settings.Dash.Look, "Look At: ON", "Look At: OFF") end)
 D_MoveToggle.MouseButton1Click:Connect(function() settings.Dash.Move = not settings.Dash.Move; updateToggleVisuals(D_MoveToggle, settings.Dash.Move, "Auto Pos: ON", "Auto Pos: OFF") end)
 D_SmartToggle.MouseButton1Click:Connect(function() settings.Dash.Smart = not settings.Dash.Smart; updateToggleVisuals(D_SmartToggle, settings.Dash.Smart, "Smart Hold: ON", "Smart Hold: OFF") end)
 
+-- Moves
+SP_Toggle.MouseButton1Click:Connect(function() settings.Moves.Enabled = not settings.Moves.Enabled; updateToggleVisuals(SP_Toggle, settings.Moves.Enabled, "Move Block: ON", "Move Block: OFF") end)
+N_Toggle.MouseButton1Click:Connect(function() settings.Moves.NailBlock = not settings.Moves.NailBlock; updateToggleVisuals(N_Toggle, settings.Moves.NailBlock, "Nail Block: ON", "Nail Block: OFF") end)
+
+-- Punch
 P_Toggle.MouseButton1Click:Connect(function() settings.Punch.Enabled = not settings.Punch.Enabled; updateToggleVisuals(P_Toggle, settings.Punch.Enabled, "Punch: ON", "Punch: OFF") end)
 P_LookToggle.MouseButton1Click:Connect(function() settings.Punch.Look = not settings.Punch.Look; updateToggleVisuals(P_LookToggle, settings.Punch.Look, "Look At: ON", "Look At: OFF") end)
 P_GlideToggle.MouseButton1Click:Connect(function() settings.Punch.Glide = not settings.Punch.Glide; updateToggleVisuals(P_GlideToggle, settings.Punch.Glide, "Glide: ON", "Glide: OFF") end)
 P_ComboToggle.MouseButton1Click:Connect(function() settings.Punch.Max3 = not settings.Punch.Max3; updateToggleVisuals(P_ComboToggle, settings.Punch.Max3, "Max 3 Hits: ON", "Max 3 Hits: OFF") end)
 
+-- Misc
 M_SideDashToggle.MouseButton1Click:Connect(function() settings.Misc.SideDash = not settings.Misc.SideDash; updateToggleVisuals(M_SideDashToggle, settings.Misc.SideDash, "Side Dash: ON", "Side Dash: OFF") end)
 M_CamLockToggle.MouseButton1Click:Connect(function() settings.Misc.CamLock = not settings.Misc.CamLock; updateToggleVisuals(M_CamLockToggle, settings.Misc.CamLock, "Cam Lock: ON", "Cam Lock: OFF") end)
+M_BlatantToggle.MouseButton1Click:Connect(function() settings.Misc.Blatant = not settings.Misc.Blatant; updateToggleVisuals(M_BlatantToggle, settings.Misc.Blatant, "Blatant: ON", "Blatant: OFF") end)
 
 -- =================================================================================
 -- 7. LOGIC
@@ -590,6 +560,17 @@ local function areWelded(myChar, targetChar)
 	return false
 end
 
+-- Checks if char is doing a counter
+local function isCountering(char)
+	local animator = char:FindFirstChild("Animator", true)
+	if not animator then return false end
+	for _, t in pairs(animator:GetPlayingAnimationTracks()) do
+		local id = string.match(t.Animation.AnimationId, "%d+")
+		if counterAnims[id] then return true end
+	end
+	return false
+end
+
 local function getSafeLookCFrame(originPos, targetPos)
 	local flatOrigin = Vector3.new(originPos.X, 0, originPos.Z)
 	local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
@@ -604,6 +585,21 @@ local function removeCharFromCache(char)
 	local idx = table.find(activeCharacters, char)
 	if idx then table.remove(activeCharacters, idx) end
 end
+
+-- Optimized Nail Detection
+local function registerNail(obj)
+	if obj.Name == "Nail" and obj:IsA("Model") then
+		table.insert(activeNails, obj)
+		obj.AncestryChanged:Connect(function(_, parent)
+			if not parent then
+				local idx = table.find(activeNails, obj)
+				if idx then table.remove(activeNails, idx) end
+			end
+		end)
+	end
+end
+Workspace.DescendantAdded:Connect(registerNail)
+for _, v in pairs(Workspace:GetDescendants()) do registerNail(v) end
 
 local function getPredictedPos(char, predictionTime)
 	local root = char:FindFirstChild("HumanoidRootPart")
@@ -622,7 +618,6 @@ end
 local function triggerSideDash(target)
 	if isRagdolled(Player.Character) then return end
 	local char = Player.Character
-	if not char then return end
 	local root = char:FindFirstChild("HumanoidRootPart")
 	local hum = char:FindFirstChild("Humanoid")
 	local animator = hum and hum:FindFirstChild("Animator")
@@ -675,6 +670,19 @@ local function triggerGlide(targetChar)
 	local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
 	if not myRoot or not targetRoot or areWelded(Player.Character, targetChar) then return end
 	
+	if settings.Misc.Blatant then
+		local predTime = 0.1 
+		local predPos = getPredictedPos(targetChar, predTime)
+		local direction = (myRoot.Position - predPos).Unit
+		local teleportPos = predPos + (direction * 3) 
+		local safeLook = getSafeLookCFrame(teleportPos, predPos)
+		if safeLook then
+			local finalCF = safeLook + Vector3.new(0, myRoot.Position.Y, 0)
+			myRoot.CFrame = finalCF 
+		end
+		return
+	end
+	
 	local dist = (myRoot.Position - targetRoot.Position).Magnitude
 	if dist > 3 and dist < 20 then
 		local alpha = 0.3
@@ -686,16 +694,23 @@ local function triggerGlide(targetChar)
 	end
 end
 
-local function triggerBlockGlide(targetChar)
+local function triggerBlockGlide(targetChar, pred)
 	if not Player.Character then return end
 	local myRoot = Player.Character:FindFirstChild("HumanoidRootPart")
 	local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
 	if not myRoot or not targetRoot or areWelded(Player.Character, targetChar) then return end
 	
-	local direction = (myRoot.Position - targetRoot.Position).Unit
-	local targetPos = targetRoot.Position + (direction * 3)
-	local finalPos = Vector3.new(targetPos.X, myRoot.Position.Y, targetPos.Z)
-	local safeLook = getSafeLookCFrame(finalPos, targetRoot.Position)
+	local targetPos = getPredictedPos(targetChar, pred or 0)
+	local direction = (myRoot.Position - targetPos).Unit
+	local finalPos = targetPos + (direction * 3)
+	
+	if settings.Misc.Blatant then
+		local safeLook = getSafeLookCFrame(finalPos, targetPos)
+		if safeLook then myRoot.CFrame = safeLook + Vector3.new(0, myRoot.Position.Y, 0) end
+		return
+	end
+	
+	local safeLook = getSafeLookCFrame(finalPos, targetPos)
 	if safeLook then
 		safeLook = safeLook + Vector3.new(0, myRoot.Position.Y, 0)
 		TweenService:Create(myRoot, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = safeLook}):Play()
@@ -712,6 +727,13 @@ local function attemptPunch(targetChar)
 	if isAttacking or isRagdolled(Player.Character) then return end
 	if isRagdolled(targetChar) then return end 
 	if settings.Punch.Max3 and comboCooldownActive then return end 
+	
+	-- Anti-Counter Check
+	local anyCounter = false
+	for _, char in pairs(activeCharacters) do
+		if isNearbyPredicted(char, 15, 0) and isCountering(char) then anyCounter = true break end
+	end
+	if anyCounter then return end
 	
 	local chance = tonumber(P_Chance.Text) or 1
 	if math.random() > chance then return end
@@ -739,47 +761,66 @@ local function attemptPunch(targetChar)
 	end)
 end
 
-local function triggerGenericBlock(targetChar, isDashBlock, trackObj)
+-- GENERIC BLOCK TRIGGER
+local function triggerGenericBlock(targetChar, type, trackObj, specialData)
 	if isRagdolled(Player.Character) then return end
 	
-	local cfg = isDashBlock and {
-		Delay = tonumber(D_Delay.Text), Hold = tonumber(D_Hold.Text),
-		Look = settings.Dash.Look, Move = settings.Dash.Move,
-		PreDelay = tonumber(D_PreDelay.Text), LookTime = tonumber(D_LookTime.Text),
-		Smart = settings.Dash.Smart, PostDelay = tonumber(D_PostDelay.Text)
-	} or {
-		Delay = tonumber(B_Delay.Text), Hold = tonumber(B_Hold.Text),
-		Look = settings.Block.Look, Move = settings.Block.Move,
-		PreDelay = tonumber(B_PreDelay.Text), LookTime = tonumber(B_LookTime.Text),
-		Smart = false 
-	}
+	local cfg = {}
+	if type == "Dash" then
+		cfg = {
+			Delay = tonumber(D_Delay.Text), Hold = tonumber(D_Hold.Text),
+			Look = settings.Dash.Look, Move = settings.Dash.Move,
+			PreDelay = tonumber(D_PreDelay.Text), LookTime = tonumber(D_LookTime.Text),
+			Smart = settings.Dash.Smart, PostDelay = tonumber(D_PostDelay.Text), Pred = tonumber(D_Pred.Text)
+		}
+	elseif type == "Special" then
+		local exDelay = tonumber(SP_ExDelay.Text) or 0
+		local exHold = tonumber(SP_ExHold.Text) or 0
+		cfg = {
+			Delay = specialData.D + exDelay, Hold = specialData.H + exHold,
+			Look = true, Move = false, 
+			PreDelay = 0.05, LookTime = (specialData.H + exHold) + 0.5,
+			Smart = false, Pred = 0 
+		}
+	else 
+		cfg = {
+			Delay = tonumber(B_Delay.Text), Hold = tonumber(B_Hold.Text),
+			Look = settings.Block.Look, Move = settings.Block.Move,
+			PreDelay = tonumber(B_PreDelay.Text), LookTime = tonumber(B_LookTime.Text),
+			Smart = false, Pred = tonumber(B_Pred.Text)
+		}
+	end
+	
+	if type == "M1" and trackObj then
+		local id = string.match(trackObj.Animation.AnimationId, "%d+")
+		if m1Exceptions[id] then
+			cfg.Delay = math.max(0, cfg.Delay + m1Exceptions[id])
+		end
+	end
 	
 	task.delay(cfg.Delay or 0.16, function()
 		if isRagdolled(Player.Character) then return end
-		
-		if cfg.Move then triggerBlockGlide(targetChar) end
+		if cfg.Move then triggerBlockGlide(targetChar, cfg.Pred) end
 		
 		if not isBlocking then
 			isBlocking = true
 			sendRemote("Block", true)
-			StatusLabel.Text = isDashBlock and "DASH BLOCK" or "BLOCKING"
+			StatusLabel.Text = (type == "Dash" and "DASH BLOCK") or (type == "Special" and "MOVE BLOCK") or "BLOCKING"
 			StatusLabel.TextColor3 = Color3.fromRGB(80, 255, 120)
 		end
 		
 		if blockTask then task.cancel(blockTask) end
 		
-		-- Smart Hold Logic (Wait for Start)
-		if cfg.Smart and isDashBlock then
+		if cfg.Smart and type == "Dash" then
 			StatusLabel.Text = "WAITING END"
 			local animator = targetChar:FindFirstChild("Animator", true)
 			local endAnimTrack = nil
+			
 			if animator then
-				-- Check existing
 				for _, t in pairs(animator:GetPlayingAnimationTracks()) do
 					local id = string.match(t.Animation.AnimationId, "%d+")
 					if dashEnds[id] then endAnimTrack = t break end
 				end
-				-- Wait for new
 				if not endAnimTrack then
 					local connection
 					connection = animator.AnimationPlayed:Connect(function(t)
@@ -801,23 +842,18 @@ local function triggerGenericBlock(targetChar, isDashBlock, trackObj)
 			StatusLabel.Text = "IDLE"
 			StatusLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
 			
-			if settings.Punch.Enabled then
-				if isNearbyPredicted(targetChar, tonumber(P_Dist.Text) or 5, 0) then 
-					attemptPunch(targetChar) 
-				end
+			if settings.Punch.Enabled and not isRagdolled(targetChar) then
+				if isNearbyPredicted(targetChar, tonumber(P_Dist.Text) or 5, 0) then attemptPunch(targetChar) end
 			end
 		else
-			-- Standard Hold
 			blockTask = task.delay(cfg.Hold or 0.12, function()
 				sendRemote("Block", false)
 				isBlocking = false
 				blockTask = nil
 				StatusLabel.Text = "IDLE"
 				StatusLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
-				if settings.Punch.Enabled then
-					if isNearbyPredicted(targetChar, tonumber(P_Dist.Text) or 5, 0) then 
-						attemptPunch(targetChar) 
-					end
+				if settings.Punch.Enabled and not isRagdolled(targetChar) then
+					if isNearbyPredicted(targetChar, tonumber(P_Dist.Text) or 5, 0) then attemptPunch(targetChar) end
 				end
 			end)
 		end
@@ -837,7 +873,6 @@ local function hookAnimator(animator, char)
 		if isRagdolled(Player.Character) then return end
 		if not track.Animation then return end
 		if char == Player.Character then return end
-		
 		local rawId = string.match(track.Animation.AnimationId, "%d+")
 		
 		if settings.Block.Enabled and m1Database[rawId] and not processedTracks[track] then
@@ -848,7 +883,7 @@ local function hookAnimator(animator, char)
 			if isNearbyPredicted(char, reqDist, pred) then
 				processedTracks[track] = true
 				track.Ended:Connect(function() processedTracks[track] = nil end)
-				triggerGenericBlock(char, false, track)
+				triggerGenericBlock(char, "M1", track)
 			end
 		end
 		
@@ -860,7 +895,16 @@ local function hookAnimator(animator, char)
 			if isNearbyPredicted(char, reqDist, pred) then
 				processedTracks[track] = true
 				track.Ended:Connect(function() processedTracks[track] = nil end)
-				triggerGenericBlock(char, true, track)
+				triggerGenericBlock(char, "Dash", track)
+			end
+		end
+		
+		if settings.Moves.Enabled and specialMovesDatabase[rawId] and not processedTracks[track] then
+			local reqDist = tonumber(SP_Dist.Text) or 15
+			if isNearbyPredicted(char, reqDist, 0) then
+				processedTracks[track] = true
+				track.Ended:Connect(function() processedTracks[track] = nil end)
+				triggerGenericBlock(char, "Special", track, specialMovesDatabase[rawId])
 			end
 		end
 	end)
@@ -870,11 +914,9 @@ local function hookLocalCharacter(char)
 	local hum = char:WaitForChild("Humanoid", 5)
 	local animator = hum and hum:WaitForChild("Animator", 5)
 	if not animator then return end
-	
 	animator.AnimationPlayed:Connect(function(track)
 		if not track.Animation then return end
 		local rawId = string.match(track.Animation.AnimationId, "%d+")
-		
 		if settings.Punch.Max3 and m1Database[rawId] then
 			if os.clock() - lastLocalPunchTime > 1.5 then localComboCount = 0 end
 			localComboCount = localComboCount + 1
@@ -910,14 +952,9 @@ local function hookCharacter(char)
 	hookAnimator(animator, char)
 end
 
--- =================================================================================
--- 8. RUNTIME LOOPS
--- =================================================================================
-
 RunService.Heartbeat:Connect(function()
 	if isRagdolled(Player.Character) then return end
 	if not Player.Character then return end
-	
 	for _, char in pairs(activeCharacters) do
 		if char ~= Player.Character and char.Parent then
 			local animator = char:FindFirstChild("Animator", true)
@@ -931,7 +968,7 @@ RunService.Heartbeat:Connect(function()
 							if isNearbyPredicted(char, reqDist, pred) then
 								processedTracks[track] = true
 								track.Ended:Connect(function() processedTracks[track] = nil end)
-								triggerGenericBlock(char, false, track)
+								triggerGenericBlock(char, "M1", track)
 							end
 						elseif settings.Dash.Enabled and dashStarts[id] then
 							local pred = tonumber(D_Pred.Text) or 0
@@ -939,11 +976,57 @@ RunService.Heartbeat:Connect(function()
 							if isNearbyPredicted(char, reqDist, pred) then
 								processedTracks[track] = true
 								track.Ended:Connect(function() processedTracks[track] = nil end)
-								triggerGenericBlock(char, true, track)
+								triggerGenericBlock(char, "Dash", track)
+							end
+						elseif settings.Moves.Enabled and specialMovesDatabase[id] then
+							local reqDist = tonumber(SP_Dist.Text) or 15
+							if isNearbyPredicted(char, reqDist, 0) then
+								processedTracks[track] = true
+								track.Ended:Connect(function() processedTracks[track] = nil end)
+								triggerGenericBlock(char, "Special", track, specialMovesDatabase[id])
 							end
 						end
 					end
 				end
+			end
+		end
+	end
+	
+	if settings.Moves.NailBlock then
+		local dist = tonumber(N_Dist.Text) or 40
+		local nailThreat = false
+		local myRoot = Player.Character:FindFirstChild("HumanoidRootPart")
+		if myRoot then
+			for _, obj in pairs(activeNails) do
+				if obj.Parent then
+					if obj:IsDescendantOf(Player.Character) then continue end -- Own nail
+					local creator = obj:FindFirstChild("Creator")
+					if creator and creator.Value == Player then continue end -- Own projectile
+					
+					local prim = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildOfClass("Part")
+					if prim and (prim.Position - myRoot.Position).Magnitude < dist then
+						nailThreat = true
+						break
+					end
+				end
+			end
+			
+			if nailThreat then
+				if not isBlocking then
+					isBlocking = true
+					sendRemote("Block", true)
+					StatusLabel.Text = "NAIL BLOCK"
+					StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+				end
+				if blockTask then task.cancel(blockTask) end
+				blockTask = task.delay(0.2, function()
+					if not isBlocking then return end
+					sendRemote("Block", false)
+					isBlocking = false
+					blockTask = nil
+					StatusLabel.Text = "IDLE"
+					StatusLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+				end)
 			end
 		end
 	end
@@ -971,11 +1054,9 @@ end)
 RunService.Heartbeat:Connect(function()
 	if settings.Block.Enabled then return end 
 	if not settings.Punch.Enabled or isRagdolled(Player.Character) then return end
-	
 	if not Player.Character then return end
 	local atkDist = tonumber(P_Dist.Text) or 5
 	local lookDist = tonumber(P_LookDist.Text) or 15
-	
 	local foundTarget = nil
 	if currentlyDashing and dashTarget and dashTarget.Parent and isNearbyPredicted(dashTarget, lookDist, 0) then
 		foundTarget = dashTarget
@@ -986,7 +1067,6 @@ RunService.Heartbeat:Connect(function()
 			end
 		end
 	end
-	
 	if foundTarget then
 		if isNearbyPredicted(foundTarget, atkDist, 0) then
 			attemptPunch(foundTarget)
@@ -1017,18 +1097,28 @@ RunService.RenderStepped:Connect(function()
 			local cam = Workspace.CurrentCamera
 			local smooth = tonumber(M_CamSmooth.Text) or 0.1
 			local targetPos = camTarget.HumanoidRootPart.Position
-			local goalCF = CFrame.lookAt(cam.CFrame.Position, targetPos)
-			cam.CFrame = cam.CFrame:Lerp(goalCF, smooth)
+			
+			if settings.Misc.Blatant then
+				local lookVec = (targetPos - cam.CFrame.Position).Unit
+				local _, _, roll = cam.CFrame:ToOrientation()
+				local yaw = math.atan2(-lookVec.X, -lookVec.Z)
+				local pitch = math.asin(lookVec.Y)
+				cam.CFrame = CFrame.new(cam.CFrame.Position) * CFrame.fromOrientation(pitch, yaw, roll)
+			else
+				local lookVec = (targetPos - cam.CFrame.Position).Unit
+				local yaw = math.atan2(-lookVec.X, -lookVec.Z)
+				local rx, _, rz = cam.CFrame:ToOrientation()
+				local goalCF = CFrame.new(cam.CFrame.Position) * CFrame.fromOrientation(rx, yaw, rz)
+				cam.CFrame = cam.CFrame:Lerp(goalCF, smooth)
+			end
 		end
 	end
 
 	if (not lookAtActive and not currentlyDashing) or isRagdolled(Player.Character) then return end
 	if not currentlyDashing and os.clock() > lookAtEndTime then lookAtActive = false return end
-	
 	if not Player.Character then return end
 	local myRoot = Player.Character:FindFirstChild("HumanoidRootPart")
 	if not myRoot then return end
-	
 	local targetChar = nil
 	if currentlyDashing and dashTarget and dashTarget.Parent then targetChar = dashTarget
 	else
@@ -1044,13 +1134,12 @@ RunService.RenderStepped:Connect(function()
 			end
 		end
 	end
-	
 	if targetChar then
 		local targetPos = targetChar.HumanoidRootPart.Position
 		local safeCF = getSafeLookCFrame(myRoot.Position, targetPos)
 		if safeCF then
 			local goalCF = safeCF + Vector3.new(0, myRoot.Position.Y, 0)
-			if currentlyDashing then myRoot.CFrame = goalCF
+			if currentlyDashing or settings.Misc.Blatant then myRoot.CFrame = goalCF
 			else myRoot.CFrame = myRoot.CFrame:Lerp(goalCF, 0.3) end
 		end
 	end
