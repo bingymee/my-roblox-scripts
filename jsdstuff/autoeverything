@@ -602,9 +602,9 @@ Workspace.DescendantAdded:Connect(registerNail)
 for _, v in pairs(Workspace:GetDescendants()) do registerNail(v) end
 
 local function getPredictedPos(char, predictionTime)
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if not root then return Vector3.zero end
-	return root.Position + (root.Velocity * predictionTime)
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return Vector3.zero end
+    return root.Position + (root.AssemblyLinearVelocity * predictionTime)
 end
 
 local function isNearbyPredicted(char, maxDist, predictionTime)
